@@ -1,0 +1,20 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "url": "http://localhost:3000",
+      "port": 3000
+    },
+    {
+      "name": "admin",
+      "url": "http://localhost:3001",
+      "port": 3001
+    },
+    {
+      "name": "phpmyadmin",
+      "url": "http://localhost:8080",
+      "port": 8080
+    }
+  ]
+}

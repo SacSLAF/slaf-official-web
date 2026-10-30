@@ -1,0 +1,15 @@
+{
+  "name": "slaf-portal",
+  "private": true,
+  "workspaces": ["apps/web", "apps/admin", "packages/*"],
+  "scripts": {
+    "up": "docker compose up -d --build",
+    "down": "docker compose down",
+    "logs": "docker compose logs -f api web admin worker",
+    "artisan": "docker compose exec api php artisan",
+    "db:reset": "docker compose exec api php artisan migrate:fresh --seed",
+    "test:api": "docker compose exec api ./vendor/bin/pest",
+    "build": "npm run build -w @slaf/web && npm run build -w @slaf/admin",
+    "lint": "npm run lint -w @slaf/web && npm run lint -w @slaf/admin"
+  }
+}

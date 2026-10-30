@@ -1,0 +1,125 @@
+# Production-like stack. Copy infra/.env.example to infra/.env and fill in secrets first.
+#
+#   docker compose -f infra/docker-compose.yml --env-file infra/.env up -d --build
+#
+# Networks:
+#   edge     — nginx only (published ports)
+#   app      — nginx, web, admin, api
+#   data     — api, worker, scheduler, mysql, redis (no route from web/admin to the DB)
+
+name: slaf
+
+x-api: &api
+  build: { context: .., dockerfile: infra/docker/api.Dockerfile }
+  image: slaf/api
+  env_file: ../apps/api/.env.production
+  environment:
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_DATABASE: slaf
+    DB_USERNAME: slaf
+    DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    REDIS_HOST: redis
+    REDIS_PASSWORD: ${REDIS_PASSWORD:?set REDIS_PASSWORD}
+    CACHE_STORE: redis
+    QUEUE_CONNECTION: redis
+    SESSION_DRIVER: array
+    TRUSTED_PROXIES: 172.30.1.0/24
+    # Only the nginx internal vhost (used by the admin server) may reach /api/admin.
+    ADMIN_ALLOWED_IPS: 172.30.1.0/24
+    WEB_REVALIDATE_URL: http://web:3000/api/revalidate
+    WEB_REVALIDATE_SECRET: ${REVALIDATE_SECRET:?set REVALIDATE_SECRET}
+  volumes:
+    - api-storage:/var/www/api/storage
+  depends_on: [mysql, redis]
+  restart: unless-stopped
+  security_opt: [no-new-privileges:true]
+
+services:
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - api-public:/var/www/api/public:ro
+      - api-storage:/var/www/api/storage:ro
+    networks:
+      edge: {}
+      app: { ipv4_address: 172.30.1.10 }
+    depends_on: [api, web, admin]
+    restart: unless-stopped
+
+  api:
+    <<: *api
+    networks: [app, data]
+    volumes:
+      - api-storage:/var/www/api/storage
+      - api-public:/var/www/api/public
+
+  worker:
+    <<: *api
+    command: ["php", "artisan", "queue:work", "--tries=5", "--max-time=3600"]
+    networks: [data, app]
+
+  scheduler:
+    <<: *api
+    command: ["php", "artisan", "schedule:work"]
+    networks: [data]
+
+  web:
+    build: { context: .., dockerfile: infra/docker/next.Dockerfile, args: { APP: web } }
+    environment:
+      API_INTERNAL_URL: http://nginx:8081
+      NEXT_PUBLIC_API_ORIGIN: ${API_PUBLIC_ORIGIN:?set API_PUBLIC_ORIGIN}
+      REVALIDATE_SECRET: ${REVALIDATE_SECRET}
+      SITE_URL: ${SITE_URL:?set SITE_URL}
+    networks: [app]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp, /app/apps/web/.next/cache]
+    security_opt: [no-new-privileges:true]
+
+  admin:
+    build: { context: .., dockerfile: infra/docker/next.Dockerfile, args: { APP: admin } }
+    environment:
+      API_INTERNAL_URL: http://nginx:8081
+      API_PUBLIC_ORIGIN: ${API_PUBLIC_ORIGIN}
+    networks: [app]
+    restart: unless-stopped
+    read_only: true
+    tmpfs: [/tmp]
+    security_opt: [no-new-privileges:true]
+
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: slaf
+      MYSQL_USER: slaf
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD}
+    command: ["--log-bin-trust-function-creators=1"]
+    volumes: [mysql-data:/var/lib/mysql]
+    networks: [data]
+    restart: unless-stopped
+
+  redis:
+    image: redis:7.4-alpine
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD}", "--appendonly", "yes"]
+    volumes: [redis-data:/data]
+    networks: [data]
+    restart: unless-stopped
+
+networks:
+  edge: {}
+  app:
+    ipam: { config: [{ subnet: 172.30.1.0/24 }] }
+  data:
+    internal: true
+
+volumes:
+  mysql-data: {}
+  redis-data: {}
+  api-storage: {}
+  api-public: {}

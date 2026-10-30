@@ -1,0 +1,146 @@
+# Local development stack — everything runs in Docker, source is mounted live.
+#
+#   docker compose up -d          start (first run builds images and installs packages)
+#   docker compose logs -f api    follow a service's logs
+#   docker compose down           stop (data is kept in volumes)
+#   docker compose down -v        stop and wipe the database
+#
+#   Public site    http://localhost:3000
+#   Admin console  http://localhost:3001
+#   API            http://localhost:8000
+#   phpMyAdmin     http://localhost:8080
+#   MySQL          localhost:3307  (3307 so it doesn't clash with a local XAMPP MySQL on 3306)
+#
+# Production uses infra/docker-compose.yml instead.
+
+name: slaf-dev
+
+x-api: &api
+  build:
+    context: .
+    dockerfile: infra/docker/api.dev.Dockerfile
+  image: slaf/api-dev
+  working_dir: /var/www/api
+  volumes:
+    - ./apps/api:/var/www/api
+    - ./apps/api/storage/app/public:/var/www/api/public/storage
+  environment:
+    APP_ENV: local
+    APP_URL: http://localhost:8000
+    DB_CONNECTION: mysql
+    DB_HOST: mysql
+    DB_PORT: 3306
+    DB_DATABASE: slaf
+    DB_USERNAME: slaf
+    DB_PASSWORD: slaf
+    QUEUE_CONNECTION: database
+    CACHE_STORE: database
+    # Requests reach the API from the admin/web containers; trust their forwarded client IP.
+    TRUSTED_PROXIES: 172.31.0.0/16
+    WEB_REVALIDATE_URL: http://web:3000/api/revalidate
+    WEB_REVALIDATE_SECRET: change-me-dev-revalidate-secret
+  depends_on:
+    mysql:
+      condition: service_healthy
+  networks: [slaf]
+
+x-node: &node
+  image: node:22-bookworm-slim
+  working_dir: /repo
+  volumes:
+    - .:/repo
+    # Linux node_modules and build caches live in volumes, separate from the Windows host copies.
+    - node_modules:/repo/node_modules
+    - web_next:/repo/apps/web/.next
+    - admin_next:/repo/apps/admin/.next
+  environment:
+    NEXT_TELEMETRY_DISABLED: 1
+    WATCHPACK_POLLING: "true"
+  networks: [slaf]
+
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: slaf
+      MYSQL_USER: slaf
+      MYSQL_PASSWORD: slaf
+      MYSQL_ROOT_PASSWORD: root
+      TZ: UTC
+    # Needed so the app user can create the audit-log immutability triggers.
+    command: ["--log-bin-trust-function-creators=1", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+    ports: ["3307:3306"]
+    volumes: [mysql_data:/var/lib/mysql]
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uslaf", "-pslaf"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [slaf]
+
+  phpmyadmin:
+    image: phpmyadmin:5
+    environment:
+      PMA_HOST: mysql
+      PMA_USER: slaf
+      PMA_PASSWORD: slaf
+    ports: ["8080:80"]
+    depends_on: [mysql]
+    networks: [slaf]
+
+  api:
+    <<: *api
+    ports: ["8000:8000"]
+    command: ["slaf-dev-entrypoint"]
+
+  worker:
+    <<: *api
+    command: ["sh", "-c", "until [ -f vendor/autoload.php ]; do sleep 2; done; php artisan queue:work --tries=5 --sleep=1"]
+    # Restarts until the api container has finished migrating (the jobs table must exist).
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+  deps:
+    <<: *node
+    command: ["npm", "install", "--no-audit", "--no-fund"]
+
+  web:
+    <<: *node
+    # webpack (not Turbopack) because only webpack can poll Windows bind mounts for changes.
+    command: ["npm", "run", "dev", "-w", "@slaf/web", "--", "-H", "0.0.0.0", "--webpack"]
+    ports: ["3000:3000"]
+    environment:
+      NEXT_TELEMETRY_DISABLED: 1
+      WATCHPACK_POLLING: "true"
+      API_INTERNAL_URL: http://api:8000
+      NEXT_PUBLIC_API_ORIGIN: http://localhost:8000
+      REVALIDATE_SECRET: change-me-dev-revalidate-secret
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+
+  admin:
+    <<: *node
+    command: ["npm", "run", "dev", "-w", "@slaf/admin", "--", "-H", "0.0.0.0", "--webpack"]
+    ports: ["3001:3001"]
+    environment:
+      NEXT_TELEMETRY_DISABLED: 1
+      WATCHPACK_POLLING: "true"
+      API_INTERNAL_URL: http://api:8000
+      API_PUBLIC_ORIGIN: http://localhost:8000
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+
+networks:
+  slaf:
+    ipam:
+      config: [{ subnet: 172.31.0.0/16 }]
+
+volumes:
+  mysql_data: {}
+  node_modules: {}
+  web_next: {}
+  admin_next: {}

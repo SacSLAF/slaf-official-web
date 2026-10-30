@@ -1,0 +1,170 @@
+@import "tailwindcss";
+@import "../../../../packages/ui/theme.css";
+
+/* Public site: Noto Sans for body (one family across Latin/Sinhala/Tamil), Archivo Expanded for display. */
+@theme {
+  --font-sans: var(--font-body), var(--font-sinhala), var(--font-tamil), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), var(--font-sinhala), var(--font-tamil), ui-sans-serif, sans-serif;
+  --color-runway: #f6f8fb;
+  --color-steel: #2f5893;
+  --color-haze: #8fb8e8;
+}
+
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+}
+
+/* Hero sky: bright air-force blue deepening toward the top, with a soft sun-glow and faint contrails. */
+.hero-sky {
+  background:
+    radial-gradient(ellipse 60% 70% at 78% 55%, rgb(130 173 230 / 0.35), transparent 70%),
+    linear-gradient(115deg, transparent 46%, rgb(255 255 255 / 0.07) 46.3%, transparent 46.8%),
+    linear-gradient(115deg, transparent 58%, rgb(255 255 255 / 0.05) 58.2%, transparent 58.6%),
+    linear-gradient(180deg, var(--color-navy-900) 0%, var(--color-navy-700) 55%, var(--color-navy-600) 100%);
+}
+
+/* Uppercase hero statement set narrower than section headings. */
+.hero-sky h1.display {
+  font-variation-settings: "wdth" 92;
+  letter-spacing: -0.015em;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  /* Archivo's width axis: headings set wide, like airframe markings. Sinhala/Tamil fall back to Noto. */
+  .display {
+    font-variation-settings: "wdth" 118;
+    letter-spacing: -0.01em;
+  }
+
+  :lang(si) .display,
+  :lang(ta) .display {
+    letter-spacing: 0;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+/* --- Aeronautical chart hero ---------------------------------------- */
+.chart-coast {
+  fill: color-mix(in oklab, var(--color-navy-700) 70%, transparent);
+  stroke: var(--color-haze);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+.chart-grid {
+  stroke: color-mix(in oklab, var(--color-haze) 22%, transparent);
+  stroke-width: 0.5;
+  stroke-dasharray: 2 3;
+}
+.chart-grid-label {
+  fill: color-mix(in oklab, var(--color-haze) 60%, transparent);
+  font-size: 6px;
+  font-family: var(--font-body);
+}
+.chart-base {
+  animation: base-in 500ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(400ms + var(--i) * 110ms);
+}
+.chart-base circle.ring {
+  fill: none;
+  stroke: var(--color-gold-400);
+  stroke-width: 0.8;
+  opacity: 0.6;
+}
+.chart-base circle.dot {
+  fill: var(--color-gold-400);
+}
+.chart-base text {
+  fill: #fff;
+  font-size: 7px;
+  font-family: var(--font-body);
+  opacity: 0;
+  transition: opacity 150ms;
+  paint-order: stroke;
+  stroke: var(--color-navy-950);
+  stroke-width: 2.5px;
+}
+.chart-base:is(:hover, :focus-visible) text,
+.chart-base.always text {
+  opacity: 1;
+}
+.chart-base:focus-visible circle.ring {
+  stroke: #fff;
+  stroke-width: 1.4;
+  opacity: 1;
+}
+.chart-base:focus-visible {
+  outline: none;
+}
+@keyframes base-in {
+  from {
+    opacity: 0;
+    transform: scale(0.2);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.chart-base {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* --- CMS rich text --------------------------------------------------- */
+.prose-slaf {
+  max-width: 68ch;
+  font-size: 1.0625rem;
+  line-height: 1.7;
+  color: var(--ink);
+}
+.prose-slaf > * + * {
+  margin-top: 1em;
+}
+.prose-slaf h2 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin-top: 1.6em;
+}
+.prose-slaf h3 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-top: 1.4em;
+}
+.prose-slaf ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.prose-slaf ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.prose-slaf a {
+  color: var(--link);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.prose-slaf blockquote {
+  border-left: 3px solid var(--color-gold-500);
+  padding-left: 1.1em;
+  color: var(--ink-muted);
+}
+.prose-slaf img {
+  border-radius: 6px;
+}

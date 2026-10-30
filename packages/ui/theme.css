@@ -1,0 +1,147 @@
+/*
+ * SLAF design tokens — shared by apps/web and apps/admin.
+ * Import after `@import "tailwindcss";` and add `@source` for this package.
+ *
+ * Palette: a clean air-force blue on white. The roundel's own colours appear
+ * only in the logo; gold is kept for focus rings and small highlights.
+ */
+
+@theme {
+  --color-navy-50: #eef4fc;
+  --color-navy-100: #d8e6f8;
+  --color-navy-200: #b2cdf1;
+  --color-navy-300: #82ade6;
+  --color-navy-400: #4f88d6;
+  --color-navy-500: #2a69c2;
+  --color-navy-600: #1553a8;
+  --color-navy-700: #10438c;
+  --color-navy-800: #0d3570;
+  --color-navy-900: #0a2a59;
+  --color-navy-950: #061b3b;
+
+  --color-gold-300: #e6cf7e;
+  --color-gold-400: #d9b84f;
+  --color-gold-500: #c9a227;
+  --color-gold-600: #a7841b;
+  --color-gold-700: #7f6415;
+
+  --color-sky-signal: #2fa4e7;
+  --color-ok: #1f8a4c;
+  --color-warn: #b7791f;
+  --color-danger: #c53030;
+
+  --font-sans: var(--font-inter), var(--font-sinhala), var(--font-tamil), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display-face), var(--font-sinhala), var(--font-tamil), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-card: 0.875rem;
+}
+
+/* Semantic surface tokens; switched by theme attributes on <html>. */
+:root {
+  --surface: #ffffff;
+  --surface-muted: #f2f6fc;
+  --surface-raised: #ffffff;
+  --ink: #0f1a2b;
+  --ink-muted: #4a5568;
+  --line: #dde3ec;
+  --brand: var(--color-navy-900);
+  --brand-ink: #ffffff;
+  --accent: var(--color-gold-500);
+  --focus: var(--color-gold-500);
+  --link: var(--color-navy-600);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --surface: #07101f;
+    --surface-muted: #0c1729;
+    --surface-raised: #101e34;
+    --ink: #e8edf5;
+    --ink-muted: #9aa8bd;
+    --line: #1e2e48;
+    --brand: var(--color-navy-950);
+    --link: var(--color-navy-200);
+  }
+}
+
+:root[data-theme="dark"] {
+  --surface: #07101f;
+  --surface-muted: #0c1729;
+  --surface-raised: #101e34;
+  --ink: #e8edf5;
+  --ink-muted: #9aa8bd;
+  --line: #1e2e48;
+  --brand: var(--color-navy-950);
+  --link: var(--color-navy-200);
+}
+
+/* High-contrast mode (WCAG AAA-leaning) — overrides light/dark. */
+:root[data-contrast="high"] {
+  --surface: #000000;
+  --surface-muted: #000000;
+  --surface-raised: #000000;
+  --ink: #ffffff;
+  --ink-muted: #ffffff;
+  --line: #ffffff;
+  --brand: #000000;
+  --brand-ink: #ffff00;
+  --accent: #ffff00;
+  --focus: #ffff00;
+  --link: #ffff00;
+}
+
+:root[data-contrast="high"] a {
+  text-decoration: underline;
+}
+
+/* User font-size preference (accessibility toolbar). */
+:root[data-fontsize="lg"] { font-size: 112.5%; }
+:root[data-fontsize="xl"] { font-size: 125%; }
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-surface-raised: var(--surface-raised);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-accent: var(--accent);
+  --color-link: var(--link);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--surface);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Sinhala/Tamil scripts need extra line height to avoid clipped vowel signs. */
+  :lang(si),
+  :lang(ta) {
+    line-height: 1.75;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
